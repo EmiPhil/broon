@@ -1,0 +1,58 @@
+{
+  "name": "broon",
+  "version": "0.0.0",
+  "description": "A JS framework for working with business rules.",
+  "main": "src/broon.js",
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EmiPhil/broon.git"
+  },
+  "keywords": [
+    "broon",
+    "rule",
+    "business"
+  ],
+  "author": "EmiPhil",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/EmiPhil/broon/issues"
+  },
+  "homepage": "https://github.com/EmiPhil/broon#readme",
+  "scripts": {
+    "clean": "rimraf coverage",
+    "lint": "eslint src",
+    "cov": "cross-env NODE_ENV=development nyc report --reporter=lcov",
+    "ava": "cross-env NODE_ENV=development ava",
+    "test": "nyc npm run ava && npm run cov && npm run lint",
+    "watch": "watch 'clear && npm test' src test",
+    "start": "npm run watch",
+    "verify": "npm -s test",
+    "prepare": "npm run clean && npm test",
+    "precommit": "npm run verify",
+    "preversion": "npm test",
+    "version": "git add -A",
+    "postversion": "git push && git push --tags && npm publish"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "concurrency": 20
+  },
+  "devDependencies": {
+    "ava": "^0.25.0",
+    "cross-env": "^5.2.0",
+    "eslint": "^5.7.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "nyc": "^13.1.0",
+    "rimraf": "^2.6.2",
+    "watch": "^1.0.2"
+  }
+}
