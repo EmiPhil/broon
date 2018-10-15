@@ -1,5 +1,5 @@
-const brood = () => {}
+const broon = () => {}
 
 module.exports = {
-  brood
+  broon
 }

@@ -1,7 +1,7 @@
 const test = require('ava')
 
-const { brood } = require('../src/brood')
+const { broon } = require('../src/broon')
 
-test('brood exports', t => {
-  brood ? t.pass() : t.fail()
+test('broon exports', t => {
+  broon ? t.pass() : t.fail()
 })
