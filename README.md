@@ -1,5 +1,5 @@
 # broon
-A JS framework for working with business rules.
+A JS framework for working with authorization.
 
 [![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)
 
@@ -9,5 +9,4 @@ A JS framework for working with business rules.
 
 ## Documentation
 
-[Broon documentation.](https://broon.netlify.com/)
 
