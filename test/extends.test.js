@@ -58,7 +58,7 @@ describe('role extension tests', () => {
     let policy = new Broon()
 
     let privileges = ['a', 'b', 'c'].map((letter) => new Privilege(letter, 'resource'))
-    let roles = ['a', 'b', 'c', 'd'].map((letter) => new Role('role ' + letter))
+    let roles = ['a', 'b', 'c', 'd'].map((letter) => new Role(letter, 'role ' + letter))
     roles.map(policy.registerRole.bind(policy))
     privileges.map(policy.registerPrivilege.bind(policy))
     privileges.map((p, idx) => roles[idx].registerPrivilege(p))
@@ -85,6 +85,12 @@ describe('role extension tests', () => {
     expect(policy.makePersona('role c').can('a', 'resource')).toBeTruthy()
 
     roles[3].extend(roles[1]).extend(roles[2])
+
+    expect(policy.makePersona('role d').can('a', 'resource')).toBeTruthy()
+    expect(policy.makePersona('role d').can('b', 'resource')).toBeTruthy()
+    expect(policy.makePersona('role d').can('c', 'resource')).toBeTruthy()
+
+    roles[0].rename('new name')
 
     expect(policy.makePersona('role d').can('a', 'resource')).toBeTruthy()
     expect(policy.makePersona('role d').can('b', 'resource')).toBeTruthy()

@@ -100,12 +100,12 @@ Broon.prototype.getPrivileges = function (signatures) {
 }
 
 Broon.prototype.registerRole = function (role) {
-  this.roles[role.name] = role
+  this.roles[role.id] = role
   return this
 }
 
-Broon.prototype.getRole = function (name) {
-  return this.roles[name]
+Broon.prototype.getRole = function (id) {
+  return this.roles[id]
 }
 
 Broon.prototype.makePersona = function (roleIds, persona) {
@@ -175,10 +175,16 @@ Persona.prototype.can = function (action, resourceKind, resourceData) {
   return approved
 }
 
-function Role (name) {
+function Role (name, id) {
   this.name = name
+  this.id = id || name
   this.privileges = {}
   this.extends = {}
+}
+
+Role.prototype.rename = function (name) {
+  this.name = name
+  return this
 }
 
 Role.prototype.registerPrivilege = function (privilege) {
@@ -210,13 +216,16 @@ Role.prototype.resolve = function (target, context, resourceData) {
 }
 
 Role.prototype.extend = function (role) {
-  this.extends[role.name] = role
+  this.extends[role.id] = role
   return this
 }
 
 Role.prototype.toJson = function () {
-  var json = '{"name":' + stringJson(this.name) + ',"extends":['
+  var json = '{'
+  json += '"name":' + stringJson(this.name) + ','
+  json += '"id":' + stringJson(this.id) + ','
 
+  json += '"extends":['
   json += objectJson(this.extends, true)
   json += '],"privileges":['
   json += objectJson(this.privileges, true)
@@ -254,7 +263,7 @@ Role.prototype.load = function () {
 }
 
 Role.from = function (roleObject) {
-  return new Role(roleObject.name).setLoadContext(this, roleObject)
+  return new Role(roleObject.name, roleObject.id).setLoadContext(this, roleObject)
 }
 
 function Constraint (name, constraint) {

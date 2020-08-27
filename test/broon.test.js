@@ -13,12 +13,12 @@ test('Broon registers privileges via their target', () => {
   expect(policy.privileges['test']).toBe(privilege)
 })
 
-test('Broon registers roles via their name', () => {
+test('Broon registers roles via their id', () => {
   let policy = new Broon()
-  let role = { name: 'test' }
+  let role = { name: 'test', id: 'id' }
   policy.registerRole(role)
 
-  expect(policy.roles['test']).toBe(role)
+  expect(policy.roles['id']).toBe(role)
 })
 
 test('Role registers privileges via their target', () => {
@@ -56,9 +56,11 @@ test('Exports and imports json', () => {
   expect(policy).toEqual(policy2)
 
   let J = JSON
+  // eslint-disable-next-line
   JSON = undefined
   var policy3 = Broon.from(J.parse(json))
   expect(policy).toEqual(policy3)
   expect(() => Broon.from(json)).toThrow(ReferenceError)
+  // eslint-disable-next-line
   JSON = J
 })
