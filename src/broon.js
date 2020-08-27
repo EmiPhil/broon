@@ -180,6 +180,7 @@ function Role (name, id) {
   this.id = id || name
   this.privileges = {}
   this.extends = {}
+  this.isSuper = false
 }
 
 Role.prototype.rename = function (name) {
@@ -202,6 +203,10 @@ Role.prototype.registerPrivileges = function (privileges) {
 }
 
 Role.prototype.resolve = function (target, context, resourceData) {
+  if (this.isSuper) {
+    return true
+  }
+
   if (!(target in this.privileges)) {
     // * this role doesn't have the privilege for this action, but we may in our hierarchy
     for (var role in this.extends) {
@@ -220,10 +225,20 @@ Role.prototype.extend = function (role) {
   return this
 }
 
+Role.prototype.superfy = function () {
+  this.isSuper = true
+  return this
+}
+
+Role.makeSuper = function (role) {
+  return role.superfy()
+}
+
 Role.prototype.toJson = function () {
   var json = '{'
   json += '"name":' + stringJson(this.name) + ','
   json += '"id":' + stringJson(this.id) + ','
+  json += '"isSuper":' + this.isSuper + ','
 
   json += '"extends":['
   json += objectJson(this.extends, true)
@@ -263,7 +278,12 @@ Role.prototype.load = function () {
 }
 
 Role.from = function (roleObject) {
-  return new Role(roleObject.name, roleObject.id).setLoadContext(this, roleObject)
+  var role = new Role(roleObject.name, roleObject.id)
+  if (roleObject.isSuper) {
+    role.superfy()
+  }
+
+  return role.setLoadContext(this, roleObject)
 }
 
 function Constraint (name, constraint) {

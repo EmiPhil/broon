@@ -46,6 +46,7 @@ test('Exports and imports json', () => {
   policy.getPrivilege('action', 'resource').registerConstraint(new Broon.Constraint('constraint', 'is("true" \'true\')'))
   policy.registerRole(new Broon.Role('test2'))
   policy.getRole('test2').extend(policy.getRole('test'))
+  policy.registerRole(Broon.Role.makeSuper(new Broon.Role('super')))
 
   let json = policy.toJson()
   var mock1 = jest.fn(() => JSON.parse(json))
