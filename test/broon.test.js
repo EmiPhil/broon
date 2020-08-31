@@ -65,3 +65,7 @@ test('Exports and imports json', () => {
   // eslint-disable-next-line
   JSON = J
 })
+
+test('Import empty object returns new broon', () => {
+  expect(Broon.from({})).toEqual(new Broon())
+})
