@@ -120,6 +120,44 @@ Broon.prototype.makePersona = function (roleIds, persona) {
   return new Persona(roles, persona)
 }
 
+Broon.prototype.merge = function (broon, overwrite) {
+  if (typeof overwrite === 'undefined') {
+    overwrite = true
+  }
+
+  var reRegisterRoles = false
+  for (var privilegeId in broon.privileges) {
+    if (overwrite || !(privilegeId in this.privileges)) {
+      if (!reRegisterRoles && privilegeId in this.privileges) {
+        reRegisterRoles = true
+      }
+
+      this.privileges[privilegeId] = broon.privileges[privilegeId]
+    }
+  }
+
+  // * Reregister our roles to use the new privileges if any were overwritten (since roles keep
+  // * their own reference to privileges)
+  if (reRegisterRoles) {
+    for (var roleId in this.roles) {
+      var role = this.roles[roleId]
+      // eslint-disable-next-line no-redeclare
+      for (var privilegeId in role.privileges) {
+        role.registerPrivilege(this.privileges[privilegeId])
+      }
+    }
+  }
+
+  // eslint-disable-next-line no-redeclare
+  for (var roleId in broon.roles) {
+    if (overwrite || !(roleId in this.roles)) {
+      this.roles[roleId] = broon.roles[roleId]
+    }
+  }
+
+  return this
+}
+
 Broon.prototype.toJson = function () {
   var json = '{"privileges":{'
   json += objectJson(this.privileges)
@@ -202,22 +240,22 @@ Role.prototype.registerPrivileges = function (privileges) {
   return this
 }
 
-Role.prototype.resolve = function (target, context, resourceData) {
+Role.prototype.resolve = function (privilegeId, context, resourceData) {
   if (this.isSuper) {
     return true
   }
 
-  if (!(target in this.privileges)) {
+  if (!(privilegeId in this.privileges)) {
     // * this role doesn't have the privilege for this action, but we may in our hierarchy
     for (var role in this.extends) {
-      if (this.extends[role].resolve(target, context, resourceData)) {
+      if (this.extends[role].resolve(privilegeId, context, resourceData)) {
         return true
       }
     }
     return false
   }
 
-  return this.privileges[target].resolve(context, resourceData, this.name)
+  return this.privileges[privilegeId].resolve(context, resourceData, this.name)
 }
 
 Role.prototype.extend = function (role) {
