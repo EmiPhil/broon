@@ -72,7 +72,7 @@ Broon._includes = includes
 Broon._startsWith = startsWith
 
 Broon.prototype.registerPrivilege = function (privilege) {
-  this.privileges[privilege.target] = privilege
+  this.privileges[privilege.id] = privilege
   return this
 }
 
@@ -189,7 +189,7 @@ Role.prototype.rename = function (name) {
 }
 
 Role.prototype.registerPrivilege = function (privilege) {
-  this.privileges[privilege.target] = privilege
+  this.privileges[privilege.id] = privilege
   return this
 }
 
@@ -277,16 +277,17 @@ Role.prototype.load = function () {
   delete this.loadContext
 }
 
-Role.from = function (roleObject) {
-  var role = new Role(roleObject.name, roleObject.id)
-  if (roleObject.isSuper) {
+Role.from = function (_role) {
+  var role = new Role(_role.name, _role.id)
+  if (_role.isSuper) {
     role.superfy()
   }
 
-  return role.setLoadContext(this, roleObject)
+  return role.setLoadContext(this, _role)
 }
 
-function Constraint (name, constraint) {
+function Constraint (name, constraint, id) {
+  this.id = id || name
   this.name = name
 
   this.program = constraint
@@ -460,26 +461,30 @@ Constraint.prototype.evaluate = function (context, resourceData, roleName) {
 }
 
 Constraint.prototype.toJson = function () {
-  var json = '{"name":' + stringJson(this.name) + ','
+  var json = '{'
+
+  json += '"id":' + stringJson(this.id) + ','
+  json += '"name":' + stringJson(this.name) + ','
   json += '"program":' + stringJson(this.program)
   json += '}'
 
   return json
 }
 
-Constraint.from = function (constraintObject) {
-  return new Constraint(constraintObject.name, constraintObject.program)
+Constraint.from = function (_constraint) {
+  return new Constraint(_constraint.name, _constraint.program, _constraint.id)
 }
 
-function Privilege (action, resourceKind) {
+function Privilege (action, resourceKind, id) {
   this.action = action
   this.resourceKind = resourceKind
   this.target = Broon.toTarget(action, resourceKind)
+  this.id = id || this.target
   this.constraints = {}
 }
 
 Privilege.prototype.registerConstraint = function (constraint) {
-  this.constraints[constraint.name] = constraint
+  this.constraints[constraint.id] = constraint
   return this
 }
 
@@ -498,7 +503,10 @@ Privilege.prototype.resolve = function (context, resourceData, roleName) {
 }
 
 Privilege.prototype.toJson = function () {
-  var json = '{"target":' + stringJson(this.target) + ','
+  var json = '{'
+
+  json += '"id":' + stringJson(this.id) + ','
+  json += '"target":' + stringJson(this.target) + ','
   json += '"action":' + stringJson(this.action) + ','
   json += '"resourceKind":' + stringJson(this.resourceKind) + ','
 
@@ -509,11 +517,11 @@ Privilege.prototype.toJson = function () {
   return json
 }
 
-Privilege.from = function (privilegeObject) {
-  var privilege = new Privilege(privilegeObject.action, privilegeObject.resourceKind)
+Privilege.from = function (_privilege) {
+  var privilege = new Privilege(_privilege.action, _privilege.resourceKind, _privilege.id)
 
-  for (var id in privilegeObject.constraints) {
-    privilege.registerConstraint(Constraint.from.call(this, privilegeObject.constraints[id]))
+  for (var id in _privilege.constraints) {
+    privilege.registerConstraint(Constraint.from.call(this, _privilege.constraints[id]))
   }
 
   return privilege

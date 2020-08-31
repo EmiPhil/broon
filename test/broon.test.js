@@ -5,9 +5,9 @@ test('Broon has a static method toTarget to create target strings', () => {
   expect(Broon.toTarget('a', 'b')).toBe(new Broon.Privilege('a', 'b').target)
 })
 
-test('Broon registers privileges via their target', () => {
+test('Broon registers privileges via their id', () => {
   let policy = new Broon()
-  let privilege = { target: 'test' }
+  let privilege = { id: 'test' }
   policy.registerPrivilege(privilege)
 
   expect(policy.privileges['test']).toBe(privilege)
@@ -21,17 +21,17 @@ test('Broon registers roles via their id', () => {
   expect(policy.roles['id']).toBe(role)
 })
 
-test('Role registers privileges via their target', () => {
+test('Role registers privileges via their id', () => {
   let role = new Broon.Role('test')
-  let privilege = { target: 'test' }
+  let privilege = { id: 'test' }
   role.registerPrivilege(privilege)
 
   expect(role.privileges['test']).toBe(privilege)
 })
 
-test('Privilege registers constraints via their name', () => {
+test('Privilege registers constraints via their id', () => {
   let privilege = new Broon.Privilege('action', 'resource')
-  let constraint = { name: 'constraint' }
+  let constraint = { id: 'constraint' }
   privilege.registerConstraint(constraint)
 
   expect(privilege.constraints['constraint']).toBe(constraint)
