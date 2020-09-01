@@ -96,4 +96,60 @@ describe('role extension tests', () => {
     expect(policy.makePersona('role d').can('b', 'resource')).toBeTruthy()
     expect(policy.makePersona('role d').can('c', 'resource')).toBeTruthy()
   })
+
+  test('revoke extension', () => {
+    let roleA = new Role('role a')
+    let roleB = new Role('role b')
+
+    expect(roleA.extend(roleB).revokeExtension(roleB)).toEqual(new Role('role a'))
+    expect(roleA.extend(roleB).revokeExtension('role b')).toEqual(new Role('role a'))
+  })
+
+  test('single chain extension revoke privilege cascades', () => {
+    let policy = new Broon()
+
+    let roleA = new Role('role a')
+    let roleB = new Role('role b')
+    let privilege = new Privilege('action', 'resource')
+
+    policy.registerRole(roleA)
+    policy.registerRole(roleB)
+    policy.registerPrivilege(privilege)
+    roleB.registerPrivilege(privilege)
+
+    expect(policy.makePersona('role b').can('action', 'resource')).toBeTruthy()
+    expect(policy.makePersona('role a').can('action', 'resource')).toBeFalsy()
+
+    roleA.extend(roleB)
+
+    expect(policy.makePersona('role a').can('action', 'resource')).toBeTruthy()
+
+    roleB.revokePrivilege(privilege)
+
+    expect(policy.makePersona('role a').can('action', 'resource')).toBeFalsy()
+  })
+
+  test('single chain extension revoke extension cascades', () => {
+    let policy = new Broon()
+
+    let roleA = new Role('role a')
+    let roleB = new Role('role b')
+    let roleC = new Role('role c')
+    let privilege = new Privilege('action', 'resource')
+
+    policy.registerRole(roleA)
+    policy.registerRole(roleB)
+    policy.registerRole(roleC)
+    policy.registerPrivilege(privilege)
+
+    roleA.registerPrivilege(privilege)
+    roleB.extend(roleA)
+    roleC.extend(roleB)
+
+    expect(policy.makePersona('role c').can('action', 'resource')).toBeTruthy()
+
+    roleB.revokeExtension(roleA)
+
+    expect(policy.makePersona('role c').can('action', 'resource')).toBeFalsy()
+  })
 })
