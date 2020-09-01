@@ -292,8 +292,17 @@ Role.prototype.superfy = function () {
   return this
 }
 
+Role.prototype.desuperfy = function () {
+  this.isSuper = false
+  return this
+}
+
 Role.makeSuper = function (role) {
   return role.superfy()
+}
+
+Role.revokeSuper = function (role) {
+  return role.desuperfy()
 }
 
 Role.prototype.toJson = function () {
