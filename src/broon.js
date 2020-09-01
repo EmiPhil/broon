@@ -240,6 +240,18 @@ Role.prototype.registerPrivileges = function (privileges) {
   return this
 }
 
+Role.prototype.revokePrivilege = function (privilegeId) {
+  if (typeof privilegeId !== 'string') {
+    privilegeId = privilegeId.id
+  }
+
+  if (privilegeId in this.privileges) {
+    delete this.privileges[privilegeId]
+  }
+
+  return this
+}
+
 Role.prototype.resolve = function (privilegeId, context, resourceData) {
   if (this.isSuper) {
     return true
@@ -260,6 +272,18 @@ Role.prototype.resolve = function (privilegeId, context, resourceData) {
 
 Role.prototype.extend = function (role) {
   this.extends[role.id] = role
+  return this
+}
+
+Role.prototype.revokeExtension = function (roleId) {
+  if (typeof roleId !== 'string') {
+    roleId = roleId.id
+  }
+
+  if (roleId in this.extends) {
+    delete this.extends[roleId]
+  }
+
   return this
 }
 
