@@ -200,11 +200,10 @@ function Persona (roles, context) {
 
 Persona.prototype.can = function (action, resourceKind, resourceData) {
   var approved = false
-  var target = Broon.toTarget(action, resourceKind)
 
   for (var roleId in this.roles) {
     var role = this.roles[roleId]
-    approved = role.resolve(target, this.context, resourceData)
+    approved = role.resolve(action, resourceKind, this.context, resourceData)
     if (approved) {
       break
     }
@@ -217,6 +216,7 @@ function Role (name, id) {
   this.name = name
   this.id = id || name
   this.privileges = {}
+  this.targets = {}
   this.extends = {}
   this.isSuper = false
 }
@@ -227,7 +227,24 @@ Role.prototype.rename = function (name) {
 }
 
 Role.prototype.registerPrivilege = function (privilege) {
+  if (privilege.id in this.privileges) {
+    // * the privilege of this id already exists, so remove it before adding this (presumably) new
+    // * privilege.
+    this.revokePrivilege(privilege.id)
+  }
+
+  // * Keep the privilege in a hash map indexed by id
   this.privileges[privilege.id] = privilege
+
+  // * Also keep a seperate hash of arrays representing all privileges that respond to an action
+  // * -> resourceKind pair. This enables a role to have multiple privileges that can resolve a
+  // * particular action -> resourceKind pair in different ways based on the contexts
+  var target = Broon.toTarget(privilege.action, privilege.resourceKind)
+  if (!(target in this.targets)) {
+    this.targets[target] = []
+  }
+  this.targets[target].push(privilege.id)
+
   return this
 }
 
@@ -241,33 +258,65 @@ Role.prototype.registerPrivileges = function (privileges) {
 }
 
 Role.prototype.revokePrivilege = function (privilegeId) {
+  // * Expect just a privilegeId, but accept the whole privilege object
   if (typeof privilegeId !== 'string') {
     privilegeId = privilegeId.id
   }
 
+  // * We need to clean up both the privilege hash and the action -> resourceKind hash map
+  var privilege = this.privileges[privilegeId]
+  var target = Broon.toTarget(privilege.action, privilege.resourceKind)
+
+  // * Privilege hash
   if (privilegeId in this.privileges) {
     delete this.privileges[privilegeId]
+  }
+
+  // * action -> resourceKind hash map
+  for (var idx = 0; idx < this.targets[target].length; idx++) {
+    if (this.targets[target][idx] === privilegeId) {
+      this.targets[target].splice(idx, 1)
+
+      // * If there are no more privileges in the action -> resourceKind hash map, clean it up too.
+      if (this.targets[target].length === 0) {
+        delete this.targets[target]
+      }
+
+      break
+    }
   }
 
   return this
 }
 
-Role.prototype.resolve = function (privilegeId, context, resourceData) {
+Role.prototype.resolve = function (action, resourceKind, context, resourceData) {
+  // * isSuper is a full override
   if (this.isSuper) {
     return true
   }
 
-  if (!(privilegeId in this.privileges)) {
-    // * this role doesn't have the privilege for this action, but we may in our hierarchy
-    for (var role in this.extends) {
-      if (this.extends[role].resolve(privilegeId, context, resourceData)) {
-        return true
-      }
+  var target = Broon.toTarget(action, resourceKind)
+  var privilegeList = this.targets[target] || []
+
+  // * We may have more than one privilege for a given action->resourceKind pair, so check them all
+  // * and return early if any resolve
+  for (var idx = 0; idx < privilegeList.length; idx++) {
+    if (this.privileges[privilegeList[idx]].resolve(context, resourceData, this.name)) {
+      return true
     }
-    return false
   }
 
-  return this.privileges[privilegeId].resolve(context, resourceData, this.name)
+  // * We failed to authorize the user within our own role, so we check the hierarchy and return
+  // * early if any resolve. Calling resolve down the chain is a form of the Composite pattern from
+  // * Design Patterns by the Gang of Four.
+  for (var role in this.extends) {
+    if (this.extends[role].resolve(action, resourceKind, context, resourceData)) {
+      return true
+    }
+  }
+
+  // * We failed to authorize the user within our role and within the hierarchy
+  return false
 }
 
 Role.prototype.extend = function (role) {
