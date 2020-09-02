@@ -8,4 +8,9 @@ describe('role tests not covered in the example cases', () => {
     expect(role.registerPrivilege(priv).revokePrivilege(priv)).toEqual(new Role('role'))
     expect(role.registerPrivilege(priv).revokePrivilege('p')).toEqual(new Role('role'))
   })
+
+  test('revoke non existing privilege', () => {
+    let role = new Role('role')
+    expect(role.revokePrivilege('priv')).toEqual(new Role('role'))
+  })
 })

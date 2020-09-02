@@ -1,7 +1,15 @@
+// * broon!
+
 function includes (arrayOrString, item) {
+  // * This is not an exact poly fill for Array.prototype.includes and String.prototype.includes.
+  // * In the case that we are a string we check for exact equality instead of substring is in
+  // * string which suits our use case better.
+
   if (typeof arrayOrString === 'string') {
     return arrayOrString === item
   }
+
+  // * For Arrays, we are implementing a simple polyfill if the function does not exist
 
   if (typeof arrayOrString.includes === 'function') {
     return arrayOrString.includes(item)
@@ -26,6 +34,8 @@ function stringJson (string) {
   str = str.replace(/\n/g, '\\n')
   str = str.replace(/\r/g, '\\r')
   str = str.replace(/\t/g, '\\t')
+  // ! The order of operations matters here. If you do the quote replacer first the \ replacer will
+  // ! remove the \ in \"
   str = str.replace(/\\/g, '\\\\')
   str = str.replace(/"/g, '\\"')
 
@@ -40,20 +50,23 @@ function objectJson (object, asArray) {
 
     if (!asArray) {
       json += ':'
+      // ! Note that children objects are expected to implement a toJson instance method
       json += object[key].toJson()
     }
 
     json += ','
   }
 
+  // * Remove trailing comma
   json = json.substring(0, json.length - 1)
-
   return json
 }
 
 function readJson (string) {
+  // * We rely on the JSON global for reading json. Certain (but few) contexts may not implement it,
+  // * so we throw in those cases.
   if (JSON === undefined) {
-    throw new ReferenceError('Passed a string with no JSON context to parse with')
+    throw new ReferenceError('Passed a string with no global JSON context to parse with')
   }
 
   return JSON.parse(string)
@@ -112,6 +125,8 @@ Broon.prototype.makePersona = function (roleIds, persona) {
   var roles = {}
 
   for (var roleId in this.roles) {
+    // * See the note about includes above. Since we check for an exact match on strings, we
+    // * support roleIds being an array of roles or being a string of an exact roleId
     if (includes(roleIds, roleId)) {
       roles[roleId] = this.roles[roleId]
     }
@@ -261,6 +276,10 @@ Role.prototype.revokePrivilege = function (privilegeId) {
   // * Expect just a privilegeId, but accept the whole privilege object
   if (typeof privilegeId !== 'string') {
     privilegeId = privilegeId.id
+  }
+
+  if (!(privilegeId in this.privileges)) {
+    return this
   }
 
   // * We need to clean up both the privilege hash and the action -> resourceKind hash map
