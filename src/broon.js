@@ -278,6 +278,10 @@ Role.prototype.revokePrivilege = function (privilegeId) {
     privilegeId = privilegeId.id
   }
 
+  if (!(privilegeId in this.privileges)) {
+    return this
+  }
+
   // * We need to clean up both the privilege hash and the action -> resourceKind hash map
   var privilege = this.privileges[privilegeId]
   var target = Broon.toTarget(privilege.action, privilege.resourceKind)
