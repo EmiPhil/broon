@@ -69,3 +69,33 @@ test('Exports and imports json', () => {
 test('Import empty object returns new broon', () => {
   expect(Broon.from({})).toEqual(new Broon())
 })
+
+test('pass array/arg list to resgisterPrivilege/Privileges', () => {
+  var policy = new Broon()
+  var privilegeA = new Broon.Privilege('action', 'resource')
+  var privilegeB = new Broon.Privilege('action', 'resource 2')
+
+  policy.registerPrivilege(privilegeA)
+  policy.registerPrivilege(privilegeB)
+
+  expect(new Broon().registerPrivilege(privilegeA).registerPrivilege(privilegeB)).toEqual(policy)
+  expect(new Broon().registerPrivilege(privilegeA, privilegeB)).toEqual(policy)
+  expect(new Broon().registerPrivileges(privilegeA, privilegeB)).toEqual(policy)
+  expect(new Broon().registerPrivilege([privilegeA, privilegeB])).toEqual(policy)
+  expect(new Broon().registerPrivileges([privilegeA, privilegeB])).toEqual(policy)
+})
+
+test('pass array/arg list to resgisterRole/Roles', () => {
+  var policy = new Broon()
+  var roleA = new Broon.Role('role a')
+  var roleB = new Broon.Role('role b')
+
+  policy.registerRole(roleA)
+  policy.registerRole(roleB)
+
+  expect(new Broon().registerRole(roleA).registerRole(roleB)).toEqual(policy)
+  expect(new Broon().registerRole(roleA, roleB)).toEqual(policy)
+  expect(new Broon().registerRoles(roleA, roleB)).toEqual(policy)
+  expect(new Broon().registerRole([roleA, roleB])).toEqual(policy)
+  expect(new Broon().registerRoles([roleA, roleB])).toEqual(policy)
+})

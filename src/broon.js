@@ -85,8 +85,22 @@ Broon._includes = includes
 Broon._startsWith = startsWith
 
 Broon.prototype.registerPrivilege = function (privilege) {
-  this.privileges[privilege.id] = privilege
+  var _privileges
+  if (Array.isArray(arguments[0])) {
+    _privileges = arguments[0]
+  } else {
+    _privileges = arguments
+  }
+
+  for (var idx = 0; idx < _privileges.length; idx++) {
+    this.privileges[_privileges[idx].id] = _privileges[idx]
+  }
+
   return this
+}
+
+Broon.prototype.registerPrivileges = function () {
+  return this.registerPrivilege.apply(this, arguments)
 }
 
 Broon.prototype.getPrivilege = function (action, resourceKind) {
@@ -113,8 +127,21 @@ Broon.prototype.getPrivileges = function (signatures) {
 }
 
 Broon.prototype.registerRole = function (role) {
-  this.roles[role.id] = role
+  var _roles
+  if (Array.isArray(arguments[0])) {
+    _roles = arguments[0]
+  } else {
+    _roles = arguments
+  }
+
+  for (var idx = 0; idx < _roles.length; idx++) {
+    this.roles[_roles[idx].id] = _roles[idx]
+  }
   return this
+}
+
+Broon.prototype.registerRoles = function () {
+  return this.registerRole.apply(this, arguments)
 }
 
 Broon.prototype.getRole = function (id) {
@@ -132,7 +159,7 @@ Broon.prototype.makePersona = function (roleIds, persona) {
     }
   }
 
-  return new Persona(roles, persona)
+  return new Persona(roles, persona, this)
 }
 
 Broon.prototype.merge = function (broon, overwrite) {
@@ -208,14 +235,22 @@ Broon.from = function (object) {
   return broon
 }
 
-function Persona (roles, context) {
+function Persona (roles, context, broon) {
+  // * Personas are the primary way to ask the broon policy if a particular user can do an action.
+  // * We bind the persona to the user (context) for easy reuse, eg persona.can('do', 'action')
   this.roles = roles
   this.context = context
+  this.broon = broon
 }
 
 Persona.prototype.can = function (action, resourceKind, resourceData) {
   var approved = false
 
+  // * redirect requests to each of our roles and early return if any resolve true. This is an
+  // * additive style of role management - if 900 requests say no and 1 says yes, the answer will be
+  // * yes. There might be room for other strategies in the future. The .can interface could be
+  // * using a Persona instance can strategy (GoF strategy pattern) if required in the future
+  // * without introducing breaking changes.
   for (var roleId in this.roles) {
     var role = this.roles[roleId]
     approved = role.resolve(action, resourceKind, this.context, resourceData)
@@ -229,6 +264,13 @@ Persona.prototype.can = function (action, resourceKind, resourceData) {
 
 Persona.prototype.has = function (action, resourceKind) {
   var has = false
+
+  // * The has method checks only for existance of a particular privilege - it DOES NOT resolve
+  // * whether or not the persona is authorized to do the action to the resource given the contexts.
+  // * This is useful in, for example, a user interface showing which privileges are enabled for
+  // * the persona.
+  // * If resourceKind is undefined, roles.has will assume it was passed a privilegeId. See
+  // * Role.prototype.has for more info.
   for (var roleId in this.roles) {
     has = this.roles[roleId].has(action, resourceKind)
     if (has) {
@@ -239,10 +281,62 @@ Persona.prototype.has = function (action, resourceKind) {
   return has
 }
 
+Persona.prototype.getPrivilegeIds = function (asArray) {
+  // * We could cache the results of this call like we do in roles, but cache invalidation would
+  // * require some sort of a hook into the roles to detect when they change. It is trivial to add
+  // * cache invalidation functions in methods that mutate the role, but less so to add them to the
+  // * persona roles. To implement caching here, we would want some kind of a (GoF) Observer pattern
+  // * that we could register with and clear the cache with a callback.
+  var privilegeIds = {}
+
+  for (var roleId in this.roles) {
+    var privileges = this.roles[roleId].getPrivilegeIds()
+    for (var privilegeId in privileges) {
+      privilegeIds[privilegeId] = true
+    }
+  }
+
+  if (asArray) {
+    var set = []
+    // eslint-disable-next-line no-redeclare
+    for (var privilegeId in privilegeIds) {
+      set.push(privilegeId)
+    }
+
+    return set
+  } else {
+    return privilegeIds
+  }
+}
+
+Persona.prototype.subset = function (persona) {
+  var subset = true
+
+  // * The subset method will return true if this persona is a complete subset of the argument
+  // * persona. A persona is a subset if the 'parent' persona has all of their privileges.
+  // * The function could be read as "is this persona a subset of that persona"
+
+  // * Note that it is insufficient to simply compare role lists because a set of privileges could
+  // * be composed by different groups of roles
+
+  var selfPrivileges = this.getPrivilegeIds()
+  var parentPrivileges = persona.getPrivilegeIds()
+
+  for (var privilegeId in selfPrivileges) {
+    if (!(privilegeId in parentPrivileges)) {
+      subset = false
+      break
+    }
+  }
+
+  return subset
+}
+
 function Role (name, id) {
   this.name = name
   this.id = id || name
   this.privileges = {}
+  this.privilegeIdCache = undefined
   this.targets = {}
   this.extends = {}
   this.isSuper = false
@@ -254,34 +348,42 @@ Role.prototype.rename = function (name) {
 }
 
 Role.prototype.registerPrivilege = function (privilege) {
-  if (privilege.id in this.privileges) {
-    // * the privilege of this id already exists, so remove it before adding this (presumably) new
-    // * privilege.
-    this.revokePrivilege(privilege.id)
+  var _privileges
+  if (Array.isArray(arguments[0])) {
+    _privileges = arguments[0]
+  } else {
+    _privileges = arguments
   }
 
-  // * Keep the privilege in a hash map indexed by id
-  this.privileges[privilege.id] = privilege
+  for (var idx = 0; idx < _privileges.length; idx++) {
+    var _privilege = _privileges[idx]
 
-  // * Also keep a seperate hash of arrays representing all privileges that respond to an action
-  // * -> resourceKind pair. This enables a role to have multiple privileges that can resolve a
-  // * particular action -> resourceKind pair in different ways based on the contexts
-  var target = Broon.toTarget(privilege.action, privilege.resourceKind)
-  if (!(target in this.targets)) {
-    this.targets[target] = []
+    if (_privilege.id in this.privileges) {
+      // * the privilege of this id already exists, so remove it before adding this (presumably) new
+      // * privilege.
+      this.revokePrivilege(_privilege.id)
+    }
+
+    // * Keep the privilege in a hash map indexed by id
+    this.privileges[_privilege.id] = _privilege
+
+    // * Also keep a seperate hash of arrays representing all privileges that respond to an action
+    // * -> resourceKind pair. This enables a role to have multiple privileges that can resolve a
+    // * particular action -> resourceKind pair in different ways based on the contexts
+    var target = Broon.toTarget(_privilege.action, _privilege.resourceKind)
+    if (!(target in this.targets)) {
+      this.targets[target] = []
+    }
+    this.targets[target].push(_privilege.id)
   }
-  this.targets[target].push(privilege.id)
+
+  this.clearPrivilegeIdCache()
 
   return this
 }
 
-Role.prototype.registerPrivileges = function (privileges) {
-  // * expects an array of signature [privilege]
-  for (var idx = 0; idx < privileges.length; idx++) {
-    this.registerPrivilege(privileges[idx])
-  }
-
-  return this
+Role.prototype.registerPrivileges = function () {
+  return this.registerPrivilege.apply(this, arguments)
 }
 
 Role.prototype.revokePrivilege = function (privilegeId) {
@@ -317,7 +419,45 @@ Role.prototype.revokePrivilege = function (privilegeId) {
     }
   }
 
+  this.clearPrivilegeIdCache()
+
   return this
+}
+
+Role.prototype.clearPrivilegeIdCache = function () {
+  this.privilegeIdCache = undefined
+}
+
+Role.prototype.getPrivilegeIds = function (asArray) {
+  // * Getting privileges can be an expensive operation, so we cache the result on the first call
+  if (typeof this.privilegeIdCache === 'undefined') {
+    var privilegeIds = {}
+
+    for (var privilegeId in this.privileges) {
+      privilegeIds[privilegeId] = true
+    }
+
+    for (var roleId in this.extends) {
+      // eslint-disable-next-line no-redeclare
+      for (var privilegeId in this.extends[roleId].getPrivilegeIds()) {
+        privilegeIds[privilegeId] = true
+      }
+    }
+
+    this.privilegeIdCache = privilegeIds
+  }
+
+  if (asArray) {
+    var set = []
+    // eslint-disable-next-line no-redeclare
+    for (var privilegeId in this.privilegeIdCache) {
+      set.push(privilegeId)
+    }
+
+    return set
+  } else {
+    return this.privilegeIdCache
+  }
 }
 
 Role.prototype.resolve = function (action, resourceKind, context, resourceData) {
@@ -368,6 +508,7 @@ Role.prototype.has = function (action, resourceKind) {
 
 Role.prototype.extend = function (role) {
   this.extends[role.id] = role
+  this.clearPrivilegeIdCache()
   return this
 }
 
@@ -379,6 +520,8 @@ Role.prototype.revokeExtension = function (roleId) {
   if (roleId in this.extends) {
     delete this.extends[roleId]
   }
+
+  this.clearPrivilegeIdCache()
 
   return this
 }
@@ -440,6 +583,10 @@ Role.prototype.load = function () {
   for (var idx = 0; idx < roleObject.extends.length; idx++) {
     this.extend(broon.getRole(roleObject.extends[idx]))
   }
+
+  // * It would be bad practice for the cache to have anything in it at this point, but clear it
+  // * just in case.
+  this.clearPrivilegeIdCache()
 
   delete this.loadContext
 }
@@ -651,8 +798,21 @@ function Privilege (action, resourceKind, id) {
 }
 
 Privilege.prototype.registerConstraint = function (constraint) {
-  this.constraints[constraint.id] = constraint
+  var _constraints
+  if (Array.isArray(arguments[0])) {
+    _constraints = arguments[0]
+  } else {
+    _constraints = arguments
+  }
+
+  for (var idx = 0; idx < _constraints.length; idx++) {
+    this.constraints[_constraints[idx].id] = _constraints[idx]
+  }
   return this
+}
+
+Privilege.prototype.registerConstraints = function () {
+  return this.registerConstraint.apply(this, arguments)
 }
 
 Privilege.prototype.resolve = function (context, resourceData, roleName) {
