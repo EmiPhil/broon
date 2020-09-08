@@ -109,4 +109,26 @@ describe('persona tests not covered in the example cases', () => {
     expect(personaA.subset(personaC)).toBeFalsy()
     expect(personaB.subset(personaC)).toBeFalsy()
   })
+
+  test('is super subset', () => {
+    let policy = new Broon()
+    let roleA = new Role('role a')
+    let roleB = new Role('role b').superfy()
+    let roleC = new Role('role c')
+
+    let privilegeC = new Privilege('action', 'resource c')
+
+    roleA.extend(roleB)
+
+    policy.registerPrivilege(privilegeC)
+    roleC.registerPrivilege(privilegeC)
+
+    policy.registerRoles(roleA, roleB, roleC)
+
+    let personaA = policy.makePersona('role a')
+    let personaC = policy.makePersona('role c')
+
+    expect(personaC.subset(personaA)).toBeTruthy()
+    expect(personaA.subset(personaC)).toBeFalsy()
+  })
 })

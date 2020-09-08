@@ -310,14 +310,29 @@ Persona.prototype.getPrivilegeIds = function (asArray) {
 }
 
 Persona.prototype.subset = function (persona) {
-  var subset = true
-
   // * The subset method will return true if this persona is a complete subset of the argument
   // * persona. A persona is a subset if the 'parent' persona has all of their privileges.
   // * The function could be read as "is this persona a subset of that persona"
 
   // * Note that it is insufficient to simply compare role lists because a set of privileges could
   // * be composed by different groups of roles
+
+  for (var roleId in persona.roles) {
+  // * If the argument persona is super then we are a subset of it
+    if (persona.roles[roleId].superInChain()) {
+      return true
+    }
+  }
+
+  // eslint-disable-next-line no-redeclare
+  for (var roleId in this.roles) {
+  // * similarly, if we are super then we are not a subset of the argument persona
+    if (this.roles[roleId].superInChain()) {
+      return false
+    }
+  }
+
+  var subset = true
 
   var selfPrivileges = this.getPrivilegeIds()
   var parentPrivileges = persona.getPrivilegeIds()
@@ -542,6 +557,23 @@ Role.makeSuper = function (role) {
 
 Role.revokeSuper = function (role) {
   return role.desuperfy()
+}
+
+Role.prototype.superInChain = function () {
+  // * Check if self or a role we extend isSuper
+  if (this.isSuper) {
+    return true
+  }
+
+  var inChain = false
+  for (var roleId in this.extends) {
+    if (this.extends[roleId].superInChain()) {
+      inChain = true
+      break
+    }
+  }
+
+  return inChain
 }
 
 Role.prototype.toJson = function () {
