@@ -227,6 +227,18 @@ Persona.prototype.can = function (action, resourceKind, resourceData) {
   return approved
 }
 
+Persona.prototype.has = function (action, resourceKind) {
+  var has = false
+  for (var roleId in this.roles) {
+    has = this.roles[roleId].has(action, resourceKind)
+    if (has) {
+      break
+    }
+  }
+
+  return has
+}
+
 function Role (name, id) {
   this.name = name
   this.id = id || name
@@ -336,6 +348,22 @@ Role.prototype.resolve = function (action, resourceKind, context, resourceData) 
 
   // * We failed to authorize the user within our role and within the hierarchy
   return false
+}
+
+Role.prototype.has = function (action, resourceKind) {
+  // * isSuper has all privileges
+  if (this.isSuper) {
+    return true
+  }
+
+  if (typeof resourceKind !== 'undefined') {
+    // * has is distinct from can because it returns truthy if the action/resourceKind pair exists
+    return this.targets[Broon.toTarget(action, resourceKind)].length > 0
+  } else {
+    // * or if the privilege of this specific id exists (action = privilegeId if resourceKind
+    // * is undefined)
+    return action in this.privileges
+  }
 }
 
 Role.prototype.extend = function (role) {
