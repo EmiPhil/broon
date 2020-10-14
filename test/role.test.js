@@ -67,4 +67,15 @@ describe('role tests not covered in the example cases', () => {
     expect(role.getPrivilegeIds(true)).toEqual(['p1', 'p2', 'p3'])
     expect(Object.keys(role.getPrivilegeIds())).toEqual(['p1', 'p2', 'p3'])
   })
+
+  test('privilege override', () => {
+    let role = new Role('role')
+    let p1 = new Privilege('action', 'resource', 'p1')
+    let p2 = new Privilege('action 2', 'resource', 'p1')
+
+    role.registerPrivilege(p1)
+    role.registerPrivilege(p2)
+
+    expect(new Role('role').registerPrivilege(p2)).toEqual(role)
+  })
 })
