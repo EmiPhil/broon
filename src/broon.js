@@ -24,8 +24,106 @@ function includes (arrayOrString, item) {
   }
 }
 
+function iterate (arrayOrObject, fn) {
+  if (Array.isArray(arrayOrObject)) {
+    for (var idx = 0; idx < arrayOrObject.length; idx++) {
+      fn(arrayOrObject[idx], idx, arrayOrObject)
+    }
+  } else {
+    for (var key in arrayOrObject) {
+      fn(arrayOrObject[key], key, arrayOrObject)
+    }
+  }
+}
+
 function startsWith (string, search) {
   return string.substring(0, search.length) === search
+}
+
+function isObject (value) {
+  return Boolean(value !== null && !Array.isArray(value) && typeof value === 'object')
+}
+
+function clone (value) {
+  if (isObject(value)) {
+    return cloneObject(value)
+  } else if (Array.isArray(value)) {
+    return cloneArray(value)
+  } else {
+    return value
+  }
+}
+
+function cloneArray (array) {
+  var _clone = []
+
+  for (var idx = 0; idx < array.length; idx++) {
+    _clone[idx] = clone(array[idx])
+  }
+
+  return _clone
+}
+
+function cloneObject (object) {
+  var _clone = {}
+
+  for (var key in object) {
+    _clone[key] = clone(object[key])
+  }
+
+  return _clone
+}
+
+function isEqual (a, b) {
+  if (Array.isArray(a)) {
+    return Array.isArray(b) && arrayEqual(a, b)
+  }
+
+  if (isObject(a)) {
+    return isObject(b) && objectEqual(a, b)
+  }
+
+  // ? NaN !== NaN
+  // @ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN
+  // eslint-disable-next-line no-self-compare
+  if (typeof a === 'number' && a !== a) {
+    // eslint-disable-next-line no-self-compare
+    return typeof b === 'number' && b !== b
+  }
+
+  if (typeof a === 'undefined') {
+    return typeof b === 'undefined'
+  }
+
+  return a === b
+}
+
+function arrayEqual (arr1, arr2) {
+  if (arr1.length !== arr2.length) {
+    return false
+  }
+
+  for (var idx = 0; idx < arr1.length; idx++) {
+    if (!isEqual(arr1[idx], arr2[idx])) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function objectEqual (object1, object2) {
+  if (Object.keys(object1).length !== Object.keys(object2).length) {
+    return false
+  }
+
+  for (var key in object1) {
+    if (!isEqual(object1[key], object2[key])) {
+      return false
+    }
+  }
+
+  return true
 }
 
 function stringJson (string) {
@@ -77,12 +175,17 @@ function Broon () {
   this.roles = {}
 }
 
+// * These utility functions aren't really associated with Broon, but we export them for testing
+// * purposes
+Broon._includes = includes
+Broon._iterate = iterate
+Broon._startsWith = startsWith
+Broon._clone = clone
+Broon._isEqual = isEqual
+
 Broon.toTarget = function (action, resourceKind) {
   return action + '->' + resourceKind
 }
-
-Broon._includes = includes
-Broon._startsWith = startsWith
 
 Broon.prototype.registerPrivilege = function (privilege) {
   var _privileges
@@ -148,6 +251,14 @@ Broon.prototype.getRole = function (id) {
   return this.roles[id]
 }
 
+Broon.prototype.loadRoles = function () {
+  for (var roleId in this.roles) {
+    this.getRole(roleId).load()
+  }
+
+  return this
+}
+
 Broon.prototype.makePersona = function (roleIds, persona) {
   var roles = {}
 
@@ -162,6 +273,23 @@ Broon.prototype.makePersona = function (roleIds, persona) {
   return new Persona(roles, persona, this)
 }
 
+Broon.merge = function () {
+  var _broons
+  if (Array.isArray(arguments[0])) {
+    _broons = arguments[0]
+  } else {
+    _broons = arguments
+  }
+
+  var broon = new Broon()
+
+  for (var idx = 0; idx < _broons.length; idx++) {
+    broon.merge(_broons[idx])
+  }
+
+  return broon
+}
+
 Broon.prototype.merge = function (broon, overwrite) {
   if (typeof overwrite === 'undefined') {
     overwrite = true
@@ -174,7 +302,7 @@ Broon.prototype.merge = function (broon, overwrite) {
         reRegisterRoles = true
       }
 
-      this.privileges[privilegeId] = broon.privileges[privilegeId]
+      this.registerPrivilege(Privilege.from(broon.privileges[privilegeId]))
     }
   }
 
@@ -182,22 +310,50 @@ Broon.prototype.merge = function (broon, overwrite) {
   // * their own reference to privileges)
   if (reRegisterRoles) {
     for (var roleId in this.roles) {
-      var role = this.roles[roleId]
-      // eslint-disable-next-line no-redeclare
-      for (var privilegeId in role.privileges) {
-        role.registerPrivilege(this.privileges[privilegeId])
-      }
+      this.registerRole(Role.from(this.roles[roleId], this))
     }
   }
 
   // eslint-disable-next-line no-redeclare
   for (var roleId in broon.roles) {
     if (overwrite || !(roleId in this.roles)) {
-      this.roles[roleId] = broon.roles[roleId]
+      this.registerRole(Role.from(broon.roles[roleId], this))
     }
   }
 
+  this.loadRoles()
   return this
+}
+
+Broon.prototype.rightDiff = function (broon) {
+  // * create a new Broon which represents the new things that would be added in a merge between
+  // * this broon and the argument(right) broon. This is useful if an application has a default
+  // * policy and only wants to store the additive modifications for each account's policy
+  var diff = new Broon()
+  var context = Broon.merge(this, broon)
+
+  for (var privilegeId in broon.privileges) {
+    if (!isEqual(this.privileges[privilegeId], broon.privileges[privilegeId])) {
+      diff.registerPrivilege(Privilege.from(broon.privileges[privilegeId]))
+    }
+  }
+
+  for (var roleId in broon.roles) {
+    if (!isEqual(this.roles[roleId], broon.roles[roleId])) {
+      diff.registerRole(Role.from(broon.roles[roleId], context))
+      // * Making the Role.from context equal to the merged result of this broon and arg broon
+      // * enables the roles from the arg broon to access privileges in this broon. In other words,
+      // * the resulting diff will bring along extra privileges from this broon if they are
+      // * directly referenced by a role, even if they are not different. This allows the diff
+      // * to always be a correct and functional Broon policy, at the expense of not being a "true"
+      // * diff.
+      // * To achieve a true diff, we would need to support the concept of a Broon partial/stub
+      // * which probably isn't worthwhile.
+    }
+  }
+
+  diff.loadRoles()
+  return diff
 }
 
 Broon.prototype.toJson = function () {
@@ -218,19 +374,16 @@ Broon.from = function (object) {
   }
 
   for (var privilegeId in object.privileges) {
-    broon.registerPrivilege(Privilege.from.call(broon, object.privileges[privilegeId]))
+    broon.registerPrivilege(Privilege.from(object.privileges[privilegeId]))
   }
 
   // * roles are self referencing so we first create holder objects for all the possible roles, then
   // * call the load function
   for (var roleId in object.roles) {
-    broon.registerRole(Role.from.call(broon, object.roles[roleId]))
+    broon.registerRole(Role.from(object.roles[roleId], broon))
   }
 
-  // eslint-disable-next-line no-redeclare
-  for (var roleId in object.roles) {
-    broon.getRole(roleId).load()
-  }
+  broon.loadRoles()
 
   return broon
 }
@@ -613,17 +766,26 @@ Role.prototype.setLoadContext = function (context, roleObject) {
 }
 
 Role.prototype.load = function () {
+  if (!('loadContext' in this)) {
+    return
+  }
+
   var broon = this.loadContext.broon
   var roleObject = this.loadContext.roleObject
 
-  for (var idx = 0; idx < roleObject.privileges.length; idx++) {
-    this.registerPrivilege(broon.getPrivilege(roleObject.privileges[idx]))
-  }
+  var self = this
 
-  // eslint-disable-next-line no-redeclare
-  for (var idx = 0; idx < roleObject.extends.length; idx++) {
-    this.extend(broon.getRole(roleObject.extends[idx]))
-  }
+  // * The roleObject could either be a raw json object from Role.toJson (arrays) or a real role
+  // * (objects), so we use the iterate helper to handle either case
+  iterate(roleObject.privileges, function (privilege) {
+    var id = privilege.constructor === Privilege ? privilege.id : privilege
+    self.registerPrivilege(broon.getPrivilege(id))
+  })
+
+  iterate(roleObject.extends, function (role) {
+    var id = role.constructor === Role ? role.id : role
+    self.extend(broon.getRole(id))
+  })
 
   // * It would be bad practice for the cache to have anything in it at this point, but clear it
   // * just in case.
@@ -632,13 +794,13 @@ Role.prototype.load = function () {
   delete this.loadContext
 }
 
-Role.from = function (_role) {
+Role.from = function (_role, context) {
   var role = new Role(_role.name, _role.id)
   if (_role.isSuper) {
     role.superfy()
   }
 
-  return role.setLoadContext(this, _role)
+  return role.setLoadContext(context, _role)
 }
 
 function Constraint (name, constraint, id) {
@@ -889,7 +1051,7 @@ Privilege.from = function (_privilege) {
   var privilege = new Privilege(_privilege.action, _privilege.resourceKind, _privilege.id)
 
   for (var id in _privilege.constraints) {
-    privilege.registerConstraint(Constraint.from.call(this, _privilege.constraints[id]))
+    privilege.registerConstraint(Constraint.from(_privilege.constraints[id]))
   }
 
   return privilege

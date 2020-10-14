@@ -61,10 +61,25 @@ describe('broons can be merged', () => {
     policyA.registerRole(roleA)
     policyB.registerRole(roleB)
 
-    let policyC = new Broon().registerPrivilege(privilegeB)
-    policyC.registerRole(new Broon.Role('A', '1').registerPrivilege(privilegeB))
-    policyC.registerRole(new Broon.Role('B', '2').registerPrivilege(privilegeB))
+    let policyC = new Broon()
+      .registerPrivilege(privilegeB)
+      .registerRole(new Broon.Role('A', '1').registerPrivilege(privilegeB))
+      .registerRole(new Broon.Role('B', '2').registerPrivilege(privilegeB))
 
     expect(policyA.merge(policyB)).toEqual(policyC)
+  })
+
+  test('class merge', () => {
+    let policyA = new Broon()
+    let policyB = new Broon()
+
+    let roleA = new Broon.Role('A', '1')
+    let roleB = new Broon.Role('B', '2')
+
+    policyA.registerRole(roleA)
+    policyB.registerRole(roleB)
+
+    expect(Broon.merge(policyA, policyB)).toEqual(new Broon().merge(policyA).merge(policyB))
+    expect(Broon.merge([policyA, policyB])).toEqual(Broon.merge(policyA, policyB))
   })
 })
