@@ -76,7 +76,7 @@ describe('two broons can go through a differential check to see how they differ'
     policyB.registerRoles(roleA, roleB)
 
     expect(policyA.rightDiff(policyB))
-      .toEqual(new Broon().registerPrivilege(privilegeB).registerRole(roleB))
+      .toEqual(new Broon().registerPrivileges(privilegeA, privilegeB).registerRole(roleB))
   })
 
   test('saving diff for future merge', () => {
@@ -97,5 +97,17 @@ describe('two broons can go through a differential check to see how they differ'
 
     expect(Broon.merge(basePolicy, basePolicy.rightDiff(userPolicy)))
       .toEqual(Broon.merge(basePolicy, userPolicy))
+  })
+
+  test('bring privileges from source if needed', () => {
+    let basePolicy = new Broon()
+    let basePrivilege = new Broon.Privilege('action', 'resource', 'p1')
+    basePolicy.registerPrivilege(basePrivilege)
+
+    let userPolicy = Broon.merge(basePolicy)
+    userPolicy.registerRole(new Broon.Role('user', 'user').registerPrivilege(basePrivilege))
+
+    let diff = basePolicy.rightDiff(userPolicy)
+    expect(diff.getPrivilege('p1')).toEqual(basePolicy.getPrivilege('p1'))
   })
 })
