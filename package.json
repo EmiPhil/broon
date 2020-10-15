@@ -1,6 +1,6 @@
 {
   "name": "broon",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "A JS framework for working with authorization.",
   "main": "src/broon.js",
   "files": [
