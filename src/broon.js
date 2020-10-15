@@ -340,7 +340,6 @@ Broon.prototype.rightDiff = function (broon) {
 
   for (var roleId in broon.roles) {
     if (!isEqual(this.roles[roleId], broon.roles[roleId])) {
-      diff.registerRole(Role.from(broon.roles[roleId], context))
       // * Making the Role.from context equal to the merged result of this broon and arg broon
       // * enables the roles from the arg broon to access privileges in this broon. In other words,
       // * the resulting diff will bring along extra privileges from this broon if they are
@@ -349,6 +348,17 @@ Broon.prototype.rightDiff = function (broon) {
       // * diff.
       // * To achieve a true diff, we would need to support the concept of a Broon partial/stub
       // * which probably isn't worthwhile.
+      var ctxRole = Role.from(broon.roles[roleId], context)
+      ctxRole.load()
+
+      // eslint-disable-next-line no-redeclare
+      for (var privilegeId in ctxRole.getPrivilegeIds()) {
+        diff.registerPrivilege(Privilege.from(context.getPrivilege(privilegeId)))
+      }
+
+      // * Now that we have registered all required privileges, we can build our own version of the
+      // * role without the context
+      diff.registerRole(Role.from(broon.roles[roleId], diff))
     }
   }
 
