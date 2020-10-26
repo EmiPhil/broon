@@ -16,4 +16,9 @@ describe('includes', () => {
     expect(Broon._includes(fakeArray, 'five')).toBeFalsy()
     expect(Broon._includes(fakeArray, 'two')).toBeTruthy()
   })
+
+  test('nil returns false', () => {
+    expect(Broon._includes(undefined, 'one')).toBeFalsy()
+    expect(Broon._includes(null, 'one')).toBeFalsy()
+  })
 })
