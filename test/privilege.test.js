@@ -15,4 +15,14 @@ describe('privilege tests not covered in the example cases', () => {
     expect(new Privilege('a', 'r').registerConstraint([c1, c2])).toEqual(p1)
     expect(new Privilege('a', 'r').registerConstraints([c1, c2])).toEqual(p1)
   })
+
+  test('set privilege name', () => {
+    var p1 = new Privilege('a', '2', 'id', 'name')
+    var p2 = new Privilege('a', '2')
+
+    p2.rename('name')
+
+    expect(p1.name).toEqual('name')
+    expect(p2.name).toEqual('name')
+  })
 })

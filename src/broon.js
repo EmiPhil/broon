@@ -1008,11 +1008,12 @@ Constraint.from = function (_constraint) {
   return new Constraint(_constraint.name, _constraint.program, _constraint.id)
 }
 
-function Privilege (action, resourceKind, id) {
+function Privilege (action, resourceKind, id, name) {
   this.action = action
   this.resourceKind = resourceKind
   this.target = Broon.toTarget(action, resourceKind)
   this.id = id || this.target
+  this.name = name || this.target
   this.constraints = {}
 }
 
@@ -1048,10 +1049,16 @@ Privilege.prototype.resolve = function (context, resourceData, roleName) {
   return approved
 }
 
+Privilege.prototype.rename = function (name) {
+  this.name = name
+  return this
+}
+
 Privilege.prototype.toJson = function () {
   var json = '{'
 
   json += '"id":' + stringJson(this.id) + ','
+  json += '"name":' + stringJson(this.name) + ','
   json += '"target":' + stringJson(this.target) + ','
   json += '"action":' + stringJson(this.action) + ','
   json += '"resourceKind":' + stringJson(this.resourceKind) + ','
@@ -1064,7 +1071,7 @@ Privilege.prototype.toJson = function () {
 }
 
 Privilege.from = function (_privilege) {
-  var privilege = new Privilege(_privilege.action, _privilege.resourceKind, _privilege.id)
+  var privilege = new Privilege(_privilege.action, _privilege.resourceKind, _privilege.id, _privilege.name)
 
   for (var id in _privilege.constraints) {
     privilege.registerConstraint(Constraint.from(_privilege.constraints[id]))
