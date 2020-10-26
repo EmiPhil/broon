@@ -9,8 +9,14 @@ function includes (arrayOrString, item) {
     return arrayOrString === item
   }
 
-  // * For Arrays, we are implementing a simple polyfill if the function does not exist
+  // * If we are not dealing with a string then expect an object. This guards from nil values. We
+  // * could check for Array.isArray(arrayOrString), but by simply checking that typeof is an object
+  // * allows the use of includes on a non-array object that implements an includes method
+  if (typeof arrayOrString !== 'object' || arrayOrString === null) {
+    return false
+  }
 
+  // * For Arrays, we are implementing a simple polyfill if the function does not exist
   if (typeof arrayOrString.includes === 'function') {
     return arrayOrString.includes(item)
   } else {
