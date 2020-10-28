@@ -25,4 +25,14 @@ describe('privilege tests not covered in the example cases', () => {
     expect(p1.name).toEqual('name')
     expect(p2.name).toEqual('name')
   })
+
+  test('disallow blank string id', () => {
+    var p1 = new Privilege('a', '2', '', '')
+    expect(p1.id).toEqual('a->2')
+  })
+
+  test('allow blank string name', () => {
+    var p1 = new Privilege('a', '2', 'id', '')
+    expect(p1.name).toEqual('')
+  })
 })

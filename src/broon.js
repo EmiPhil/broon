@@ -1012,8 +1012,9 @@ function Privilege (action, resourceKind, id, name) {
   this.action = action
   this.resourceKind = resourceKind
   this.target = Broon.toTarget(action, resourceKind)
+  // * id must not be a blank string, but name can be so their default setters are different
   this.id = id || this.target
-  this.name = name || this.target
+  this.name = typeof name === 'undefined' ? this.target : name
   this.constraints = {}
 }
 
