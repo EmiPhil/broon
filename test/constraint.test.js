@@ -117,4 +117,10 @@ describe('constraint tests', () => {
     expect(new Constraint('c', 'is(role roleName)').evaluate({}, {}, 'roleName')).toBeTruthy()
     expect(new Constraint('c', 'is(role roleName)').evaluate({}, {}, 'nameRole')).toBeFalsy()
   })
+
+  test('rename constraint', () => {
+    let c1 = new Constraint('c', 'is(true true)')
+    c1.rename('name')
+    expect(c1.name).toEqual('name')
+  })
 })
