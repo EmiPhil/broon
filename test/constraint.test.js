@@ -73,6 +73,23 @@ describe('constraint tests', () => {
     expect(new Constraint('c', 'in(value, persona.values)').evaluate({ values: ['v'] })).toBeFalsy()
   })
 
+  test('in_str returns true if val is in the string', () => {
+    let values = 'value.test.thing'
+    expect(new Constraint('c', 'in_str(value, persona.values)').evaluate({ values })).toBeTruthy()
+    expect(new Constraint('c', 'in_str(value, persona.values)').evaluate({ values: 'value' })).toBeTruthy()
+    expect(new Constraint('c', 'in_str(value, persona.values)').evaluate({ values: '' })).toBeFalsy()
+    expect(new Constraint('c', 'in_str(value, persona.values)').evaluate({ values: 'v' })).toBeFalsy()
+  })
+
+  test('r_test returns true if the regex passes', () => {
+    let values = 'value test.CHECK.thing thing'
+    expect(new Constraint('c', 'r_test(thing, persona.values)').evaluate({ values })).toBeTruthy()
+    expect(new Constraint('c', 'r_test(thing, "check thing")').evaluate({ values })).toBeTruthy()
+    expect(new Constraint('c', 'r_test(check, persona.values)').evaluate({ values })).toBeFalsy()
+    expect(new Constraint('c', 'r_test(check, persona.values i)').evaluate({ values })).toBeTruthy()
+    expect(new Constraint('c', 'r_test(check, "value CHECK" i)').evaluate({ values })).toBeTruthy()
+  })
+
   test('context/persona gets passed and evaluated via accessors', () => {
     expect(new Constraint('c', 'is(persona.true true)').evaluate({ true: true })).toBeTruthy()
     expect(new Constraint('c', 'is(persona.true true)').evaluate({ true: false })).toBeFalsy()
@@ -83,6 +100,11 @@ describe('constraint tests', () => {
     expect(new Constraint('c', 'is(resource.true true)').evaluate({}, { true: true })).toBeTruthy()
     expect(new Constraint('c', 'is(resource.true true)').evaluate({}, { true: false })).toBeFalsy()
     expect(new Constraint('c', 'is(data.true true)').evaluate({}, { true: true })).toBeTruthy()
+  })
+
+  test('quoted strings with spaces work', () => {
+    expect(new Constraint('c', 'is(context.data "data data"').evaluate({ data: 'data data' })).toBeTruthy()
+    expect(new Constraint('c', "is(context.data 'data data'").evaluate({ data: 'data data' })).toBeTruthy()
   })
 
   test('accessors can be deeply nested objects', () => {

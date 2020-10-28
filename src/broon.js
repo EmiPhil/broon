@@ -876,8 +876,21 @@ Constraint.operators = {
     }
 
     return result
+  },
+  'r_test': function () {
+    var regex = arguments[0]
+    var str = arguments[1]
+    var flags = ''
+
+    if ('2' in arguments) {
+      flags = arguments[2]
+    }
+
+    return new RegExp(regex, flags).test(str)
   }
 }
+
+Constraint.operators.in_str = Constraint.operators.r_test
 
 Constraint.accessors = {
   'persona': 'persona',
@@ -913,6 +926,10 @@ Constraint.parseExpression = function (program, start) {
     }
 
     expression = { type: 'accessor', value: value }
+  } else if ((match = /"[^"]*"/.exec(program))) {
+    expression = { type: 'word', name: match[0] }
+  } else if ((match = /'[^']*'/.exec(program))) {
+    expression = { type: 'word', name: match[0] }
   } else if ((match = /^[^\s(),]+/.exec(program))) {
     expression = { type: 'word', name: match[0] }
   } else {
