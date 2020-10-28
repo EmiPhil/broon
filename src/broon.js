@@ -993,6 +993,11 @@ Constraint.prototype.evaluate = function (context, resourceData, roleName) {
   return Constraint.eval(this.syntaxTree, context, resourceData, roleName)
 }
 
+Constraint.prototype.rename = function (name) {
+  this.name = name
+  return this
+}
+
 Constraint.prototype.toJson = function () {
   var json = '{'
 
